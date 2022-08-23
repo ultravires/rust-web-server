@@ -1,5 +1,4 @@
 use std::{
-    fs,
     io::{BufRead, BufReader, Write},
     net::{SocketAddr, TcpListener, TcpStream},
 };
@@ -12,19 +11,14 @@ fn handle_connection(mut stream: TcpStream) {
         .take_while(|line| !line.is_empty())
         .collect();
 
-    // let cookie = http_request[1].to_string();
-
-    // println!("{:#?}", http_request);
-
     let request_line: Vec<_> = http_request[0].split(' ').collect();
     let request_method = request_line[0].to_string();
     let request_pathname = request_line[1].to_string();
 
-    println!("{} {}", request_method, request_pathname);
-
     let docroot = "www";
 
     // let welcome_page = ["index.html"];
+    let error_page_404 = "/error/404.html";
 
     let status_line = "HTTP/1.1 200 OK";
     let mut content_type = "text/plain";
@@ -33,7 +27,16 @@ fn handle_connection(mut stream: TcpStream) {
     } else if request_pathname.ends_with(".js") {
         content_type = "text/javascript";
     }
-    let contents = fs::read_to_string(format!("{docroot}{request_pathname}")).unwrap();
+    let is_static_exist = std::path::Path::new(&format!("{docroot}{request_pathname}")).exists();
+    let mut contents = String::new();
+    if is_static_exist == true {
+        println!("{} {}", request_method, request_pathname);
+        contents = std::fs::read_to_string(format!("{docroot}{request_pathname}")).unwrap();
+    } else {
+        println!("{} {} Not Found 404", request_method, request_pathname);
+        content_type = "text/html";
+        contents = std::fs::read_to_string(format!("{docroot}{error_page_404}")).unwrap();
+    }
     let length = contents.len();
 
     let response = format!("{status_line}\r\nContent-Type: {content_type}\r\nContent-Length: {length}\r\n\r\n{contents}");
